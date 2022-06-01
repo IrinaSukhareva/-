@@ -1,11 +1,12 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
+#include <fstream>
 #include <string>
+#include <queue>
+#include <unordered_map>
+#include <map>
+#include <stdio.h> 
 using namespace std;
-
-/*1 посчитать кол-во встречаемости букв
-2создать дерево
-3заполнить цифрами
-*/
 
 struct Node{
 	char letter; //буква
@@ -14,32 +15,49 @@ struct Node{
 };
 
 //добавление нового узла дерева
-Node* addNode(char lette, unsigned int count, Node* left, Node* right){
+Node* addNode(char key, unsigned int count1, Node* left, Node* right){
 	Node* node = new Node();
-	node->letter = letter;//key
-	node->count = count;
+	node->letter = key;
+	node->count = count1;
 	node->left = left;
 	node->right = right;
 return node;
 }
 
-void Huffman(const char* original = "original text.txt", const char* cipher = "cipher text.txt") {
+void Huffman(const char* original = "original.txt", const char* cipher = "cipher.txt") {
     FILE* input;
-    fopen_s(&input, original, "r");
+    input = fopen(original, "r");
+
     if (!input) {
         puts("ERROR: original text does not open\n");
         exit(1);
     }
-
-    fclose(input);
+    
+    //подсчитывает частоту появления каждого символа и сохраните его на карте
+	int number = 0;
+	unsigned char c;
+    map<char, int>count1;
+    while (!feof(input)) {
+        c= fgetc(input);
+        if (c != EOF){
+            count1[c]++;
+            number++;
+            }
+        }
+    fclose (input);
 
     FILE* output;
-    fopen_s(&output, cipher);
-    fopen_s(&input, original);
-    if (!input || !output)
-    {
+    input = fopen(original, "r");
+    output = fopen(cipher, "w");
+    if (!input || !output){
         puts("ERROR: the texts didn't open\n"); 
         exit(1);
+    }
+    
+    fprintf(output, "%d", number);
+    for (auto pair : count1) {
+        fprintf(output, "%c", pair.first);
+        fprintf(output, "%d", pair.second);
     }
 
 
@@ -48,7 +66,6 @@ void Huffman(const char* original = "original text.txt", const char* cipher = "c
 }
 
 
-int main()
-{
-Huffman()
+int main(){
+Huffman();
 }
