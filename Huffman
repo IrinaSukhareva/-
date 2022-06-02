@@ -1,11 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <queue>
 #include <unordered_map>
-#include <map>
-#include <stdio.h> 
+
 using namespace std;
 
 struct Node{
@@ -24,6 +22,10 @@ Node* addNode(char key, unsigned int count1, Node* left, Node* right){
 return node;
 }
 
+void encode(Node* root, string code, unordered_map<char, string> &tree){
+    if (root == NULL) return;
+}
+
 void Huffman(const char* original = "original.txt", const char* cipher = "cipher.txt") {
     FILE* input;
     input = fopen(original, "r");
@@ -32,8 +34,8 @@ void Huffman(const char* original = "original.txt", const char* cipher = "cipher
         puts("ERROR: original text does not open\n");
         exit(1);
     }
-    
-    //подсчитывает частоту появления каждого символа и сохраните его на карте
+    //1 этап: 
+    //подсчитывает частоту появления каждого символа и сохраняет его на карте
 	int number = 0;
 	unsigned char c;
     map<char, int>count1;
@@ -46,6 +48,8 @@ void Huffman(const char* original = "original.txt", const char* cipher = "cipher
         }
     fclose (input);
 
+    //2 этап:
+    //создаем дерево по посчитанным частотам символом
     FILE* output;
     input = fopen(original, "r");
     output = fopen(cipher, "w");
@@ -54,12 +58,38 @@ void Huffman(const char* original = "original.txt", const char* cipher = "cipher
         exit(1);
     }
     
-    fprintf(output, "%d", number);
+    fprintf(output, "%d", number);//записываем в файл символы без повторений и их частоты
     for (auto pair : count1) {
         fprintf(output, "%c", pair.first);
         fprintf(output, "%d", pair.second);
     }
+    
+    priority_queue <Node*, vector<Node*>> arr;//очередь с приоритетом
+    for (auto pair: count1) 
+		arr.push(addNode(pair.first, pair.second, nullptr, nullptr));
+//создаем конечный узел для каждого символа и добавляем его в очередь приоритетов
+//делаем это до тех пор, пока в очереди не останется 1 узел
 
+    Node* t;//для смены мест
+    while (arr.size() != 1){//пока не останется один узел в очереди
+        Node* left = arr.top(); //обращаемся к элементу
+        arr.pop();//удаляем узлы с высшим приоритетом(низкая частота) из очереди
+        Node* right = arr.top(); 
+        arr.pop();
+        
+        if (left->letter < right->letter) {
+            t = left;
+            left = right;
+            right = t;
+        }
+
+        int sum = left->count + right->count;//добавляем сумму вместо двух вершин
+        arr.push(addNode('\0', sum, left, right));
+    }
+    
+    Node* root = arr.top();//хранит указатель на корень дерева Хаффмана
+    //создаем еще карту, в нее запишем символы и их коды
+    unordered_map<char, string> tree;
 
     fclose(input);
     fclose(output);
