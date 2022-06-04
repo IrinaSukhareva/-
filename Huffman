@@ -152,4 +152,14 @@ void Huffman(const char* original = "original.txt", const char* cipher = "cipher
 
 int main(){
 Huffman();
+
+ifstream file ("original.txt", ios::binary | ios::ate);
+int size = file.tellg();
+file.close();
+
+ifstream file1 ("cipher.txt", ios::binary | ios::ate);
+int size1 = file1.tellg();
+file1.close();
+
+cout << "Compress value is " << size-size1 << " byte";
 }
