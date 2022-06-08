@@ -16,54 +16,57 @@ struct Node{
 };
 
 //добавление нового узла дерева
-Node* addNode(char key, unsigned int count1, Node* left, Node* right){
+Node* addNode(char letter, unsigned int count, Node* left, Node* right){
 	Node* node = new Node();
-	node->letter = key;
-	node->count = count1;
+	node->letter = letter;
+	node->count = count;
 	node->left = left;
 	node->right = right;
 return node;
 }
 
-struct Comparison {//возвращаем элемент с наименьшей частотой
-	bool operator () (Node* L, Node* R){
-		return L->count > R->count;
-	}
-};
-
-//идем по дереву и сохраняем коды в карту
-void encode(Node* root, string code, unordered_map<char, string> &tree){
-    if (root == NULL) return;
-	if (!root->left && !root->right) tree[root->letter] = code;
-
-	encode(root->left, code+"0", tree);
-	encode(root->right, code+"1", tree);
-}
-
-void Huffman(const char* original = "original.txt", const char* cipher = "cipher.txt") {
+void Huffman(const char* original = "cipher.txt", const char* cipher = "decipher.txt") {
     FILE* input;
     input = fopen(original, "r");
     if (!input) {
-        puts("ERROR: original text does not open\n");
+        puts("ERROR: cipher text does not open\n");
         exit(1);
     }
     
     //1 этап: 
-    //подсчитывает частоту появления каждого символа и сохраняет его на карте
+
 	int number = 0;
-	unsigned char c;
-    map<char, int>count1;
-    while (!feof(input)) {
+	int d=fgetc(input);
+	while (d != 32){
+	    number=number*10 +(d-48);
+	    d = fgetc(input);
+	}
+	cout<<number<<endl;
+	int rcount = 0; 
+	d = fgetc(input);
+	while (d != 32){
+	    rcount=rcount*10 +(d-48);
+	    d = fgetc(input);
+	}
+	cout<<rcount<<endl;
+	
+	unsigned char h;
+	while (h!=' ') h=fgetc(input);
+	
+    map<char, int>count1;//символ и его частота
+    unsigned char c=' ';
+    while (c==' ') {
         c= fgetc(input);
-        if (c != EOF){
-            count1[c]++;
-            number++;
-            }
-        }
-    fclose (input);
+        count1[c] = fgetc(input) -48;
+        c= fgetc(input);//это пробел
+    }
+        for (auto pair : count1) {
+        cout << pair.first << " " << pair.second << '\n';
+    }
+        fclose(input);
 
     //2 этап:
-    //создаем дерево по посчитанным частотам символом
+
     FILE* output;
     input = fopen(original, "r");
     output = fopen(cipher, "w");
@@ -71,80 +74,13 @@ void Huffman(const char* original = "original.txt", const char* cipher = "cipher
         puts("ERROR: the texts didn't open\n"); 
         exit(1);
     }
-    
-    fprintf(output, "%d", number);//записываем в файл символы (без повторений) и их частоты
-    for (auto pair : count1) {
+
         fprintf(output, "%c", pair.first);
-        fprintf(output, "%d", pair.second);
-    }
+        fprintf(output, "%d ", pair.second);
+        }
     
-    priority_queue <Node*, vector<Node*>, Comparison> arr;//очередь с приоритетом
-    for (auto pair: count1) 
-		arr.push(addNode(pair.first, pair.second, nullptr, nullptr));
-//создаем конечный узел для каждого символа и добавляем его в очередь приоритетов
-//делать до тех пор, пока в очереди не останется один узел
+ 
 
-    Node* t;//для смены мест
-    while (arr.size() != 1){//пока не останется один узел в очереди
-        Node* left = arr.top(); //обращаемся к элементу//пользуемся перегрузкой оператора
-        arr.pop();//удаляем узлы с высшим приоритетом(низкая частота) из очереди
-        Node* right = arr.top(); 
-        arr.pop();
-        
-        if (left->count == right->count && left->letter < right->letter) {
-            t = left;
-            left = right;
-            right = t;
-        }
-
-        int sum = left->count + right->count;//добавляем сумму вместо двух вершин
-        arr.push(addNode('\0', sum, left, right));
-    }
-    
-    //3 этап:
-    //работа с кодами
-    Node* root = arr.top();//хранит указатель на корень дерева Хаффмана
-    //создаем еще карту, в нее запишем символы и их коды
-    unordered_map<char, string> tree;
-    encode(root, "", tree);
-    //выводим в консоль символы и их коды (для удобства)
-    cout << "Codes :\n";
-    for (auto pair : tree) {
-        cout << pair.first << " " << pair.second << '\n';
-    }
-    int rcount=0;//кол-во бит на закодировку
-    for (auto pair : count1) {
-        rcount = rcount + tree[pair.first].length()*pair.second;//умножаем кол-во бит на частоту символа
-    }//умножаем кол-во бит на частоту символа
-    
-    fclose(input);
-    input = fopen(original, "r");
-    char sf, se='0';//sf считываем из файла, se выводим в файл
-    int remains=0;//заполненные в se биты
-    fprintf(output, " %d\n", (8-(rcount%8)));//выводим незаполненные кол-во бит в конце
-    
-    while (!feof(input)){
-        sf = fgetc(input);
-        int sizesf = tree[sf].length();//кол-во бит в коде символа
-        
-        if ((8-sizesf-remains)>=0){//если влезает в одну ячейку
-            se = se | (sf<<(8-remains));
-            if ((8-sizesf-remains)==0){//если ячейка полностью заполненна
-                fprintf(output, "%c", se);
-                remains=0;
-                se='0';
-            }
-            else remains=remains + sizesf;
-        }
-        else {//если биты нужно разбить на 2 символа
-            se = se | (sf>>(sizesf-(8-remains)));
-            fprintf(output, "%c", se);
-            se='0';
-            remains=(sizesf-(8-remains));
-            se = sf << (8-remains);//в новую ячейку
-        }
-    }
-    fprintf(output, "%c", se);//выводим последнюю (она может быть не заполненна до конца)
     fclose(input);
     fclose(output);
 }
@@ -153,13 +89,5 @@ void Huffman(const char* original = "original.txt", const char* cipher = "cipher
 int main(){
 Huffman();
 
-ifstream file ("original.txt", ios::binary | ios::ate);
-int size = file.tellg();
-file.close();
 
-ifstream file1 ("cipher.txt", ios::binary | ios::ate);
-int size1 = file1.tellg();
-file1.close();
-
-cout << "Compress value is " << size-size1 << " byte";
 }
