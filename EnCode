@@ -1,0 +1,182 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <queue>
+#include <unordered_map>
+#include <map>
+#include <stdio.h> 
+#include <stdlib.h>
+using namespace std;
+
+struct Node {//использовала структуру для узлов
+    char letter; //буква
+    unsigned int count; //кол-во встречаемости
+    Node* left, * right;
+};
+//добавление нового узла дерева
+Node* addNode(char letter, unsigned int count, Node* left, Node* right) {
+    Node* node = new Node();
+    node->letter = letter;
+    node->count = count;
+    node->left = left;
+    node->right = right;
+    return node;
+};
+//возвращаем элемент с наименьшей частотой
+struct Comparison {
+    bool operator()(Node* L, Node* R) {
+        return L->count > R->count;
+    }
+};
+
+//идем по дереву и сохраняем коды в карту
+void encode(Node* root, string code, unordered_map<char, string>& tree) {
+    if (root == NULL) return;
+    if (!root->left && !root->right) tree[root->letter] = code;
+
+    encode(root->left, code + "0", tree);
+    encode(root->right, code + "1", tree);
+}
+//функция кодирования
+void EnCoder(const char* original = "original.txt", const char* cipher = "cipher.txt") {
+    FILE* input;
+    fopen_s(&input, original, "r");
+    if (!input) {
+        puts("EnCoderERROR: original text does not open\n");
+        exit(1);
+    }
+
+    //1 этап: 
+    //подсчитывает частоту появления каждого символа и сохраняет его на карте
+    unsigned char c;
+    map<char, int> count1;//мапа в которой будем хранить символ и его частоту
+    while (!feof(input)) {
+        c = fgetc(input);
+        if (!feof(input)) {
+            count1[c]++;
+        }
+    }
+    fclose(input);
+
+    //2 этап:
+    //создаем дерево по посчитанным частотам символом
+    fopen_s(&input, original, "rb");
+    FILE* output;
+    fopen_s(&output, cipher, "wb +");
+    if (!input || !output) {
+        puts("EnCoder ERROR: the texts didn't open\n");
+        exit(1);
+    }
+    char number = count1.size();
+    fputc(number, output);
+    for (auto pair : count1) {
+        fputc(pair.first, output);
+        fputc(pair.second, output);
+    }
+
+    priority_queue<Node*, vector<Node*>, Comparison> arr;//очередь с приоритетом
+    for (auto pair : count1) {
+        arr.push(addNode(pair.first, pair.second, nullptr, nullptr));
+    }
+    //создаем конечный узел для каждого символа и добавляем его в очередь приоритетов
+    //делать до тех пор, пока в очереди не останется один узел
+
+    Node* temp;//для смены мест
+    while (arr.size() != 1) {//пока не останется один узел в очереди
+        Node* left = arr.top(); //обращаемся к элементу//пользуемся перегрузкой оператора
+        arr.pop();//удаляем узлы с высшим приоритетом(низкая частота) из очереди
+        Node* right = arr.top();
+        arr.pop();
+
+        if (left->count == right->count && left->letter < right->letter) {
+            temp = left;
+            left = right;
+            right = temp;
+        }
+
+        int sum = left->count + right->count;//добавляем сумму вместо двух вершин
+        arr.push(addNode('\0', sum, left, right));
+    }
+
+    //3 этап:
+   //работа с кодами
+    Node* root = arr.top();//хранит указатель на корень дерева Хаффмана
+    //создаем еще карту, в нее запишем символы и их коды
+    unordered_map<char, string> tree;
+    encode(root, "", tree);
+
+    //выводим в консоль символы и их коды (для удобства)
+    cout << "Codes:\n";
+    for (auto pair : tree) {
+        cout << pair.first << " " << pair.second << '\n';
+    }
+
+    char sf, se = '0';//sf считываем из файла, se выводим в файл
+    int remains = 0;//сколько занято битов в se
+
+    while (!feof(input)) {
+        sf = fgetc(input);//считываем первый символ
+        if (!feof(input)) {
+            if (remains + tree[sf].length() <= 8) {//если влезает в одну ячейку
+                for (int i = 0; i < tree[sf].length(); i++) {
+                    se = (se << 1) | (tree[sf][i] - '0');//записываем побитово в se
+                }
+                remains += tree[sf].length();//увеличиваем кол-во занятых
+            }
+            else {//нужно разбить код на 2 ячейки
+                if (tree[sf].length() - remains + 8 <= 8) {//если хватит добавки в одну ячейку
+                    for (int j = 0; j < 8 - remains; j++) {//дозаписывваемв нынешнюю ячейку
+                        se = (se << 1) | (tree[sf][j] - '0');
+                    }
+                    fputc(se, output);//и выводим ее
+                    se = '0';//создаем новую
+                    for (int j = 8 - remains; j < tree[sf].length(); j++) {//записываем в нее остаток кода
+                        se = (se << 1) | (tree[sf][j] - '0');
+                    }
+                    remains = tree[sf].length() - 8 + remains;
+                }
+                else {//если нужно больше 2х ячеек
+                    for (int j = 0; j < 8 - remains; j++) {//дозаписываем нынешнюю
+                        se = (se << 1) | (tree[sf][j] - '0');
+                    }
+                    fputc(se, output);//выводм
+                    int i = 8 - remains;
+                    remains = 0;
+                    se = 0;
+                    for (i; i < tree[sf].length(); i++) {//создаем остальные ячейки
+                        se = (se << 1) | (tree[sf][i] - '0');//заполняем их
+                        remains++;
+                        if (remains == 8) {
+                            fputc(se, output);//и выводим
+                            remains = 0;
+                            se = 0;
+                        }
+                    }
+                }
+            }
+        }
+        else {//выводим последнюю ячейку (она может быть заполнена не до конца)
+            se = se << (8 - remains);
+            fputc(se, output);
+        }
+    }
+    fclose(input);
+    fclose(output);
+}
+
+
+int main()
+{
+    EnCoder();
+
+    ifstream file("original.txt", ios::binary | ios::ate);
+    int size = file.tellg();
+    file.close();
+
+    ifstream file1("cipher.txt", ios::binary | ios::ate);
+    int size1 = file1.tellg();
+    file1.close();
+
+    cout << "Compress value is " << size - size1 << " byte";
+}
