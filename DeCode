@@ -1,0 +1,160 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <queue>
+#include <unordered_map>
+#include <map>
+#include <stdio.h> 
+#include <stdlib.h>
+using namespace std;
+
+struct Node {//использовала структуру для узлов
+    char letter; //буква
+    unsigned int count; //кол-во встречаемости
+    Node* left, * right;
+};
+//добавление нового узла дерева
+Node* addNode(char letter, unsigned int count, Node* left, Node* right) {
+    Node* node = new Node();
+    node->letter = letter;
+    node->count = count;
+    node->left = left;
+    node->right = right;
+    return node;
+};
+//возвращаем элемент с наименьшей частотой
+struct Comparison {
+    bool operator()(Node* L, Node* R) {
+        return L->count > R->count;
+    }
+};
+
+//идем по дереву и сохраняем коды в карту
+void encode(Node* root, string code, unordered_map<char, string>& tree) {
+    if (root == NULL) return;
+    if (!root->left && !root->right) tree[root->letter] = code;
+
+    encode(root->left, code + "0", tree);
+    encode(root->right, code + "1", tree);
+}
+
+//функция декодирования
+void DeCoder(const char* cipher = "cipher.txt", const char* decipher = "decipher.txt") {
+    FILE* input = fopen(cipher, "rb");
+    if (!input) {
+        puts("DeCoderERROR: cipher text does not open\n");
+        exit(1);
+    }
+
+    unsigned char number = 0;
+    unsigned char c;
+    int allet = 0;//нужна чтобы не затрагивать незначащие 0
+    if (input != NULL) {
+        number = fgetc(input);
+    }
+
+    map<char, int> count1;//мапа с символами и их частотами
+    for (int i = 0; i < number; i++) {
+        c = fgetc(input);
+        count1[c] = fgetc(input);
+        allet += count1[c];
+    }
+    /* cout << "Codes:\n";
+     for (auto pair : count1) {
+         cout << pair.first << " " << pair.second << '\n';
+     }*/
+
+    priority_queue<Node*, vector<Node*>, Comparison> arr;
+
+    for (auto pair : count1) {
+        arr.push(addNode(pair.first, pair.second, nullptr, nullptr));
+    }
+
+    Node* t;
+    while (arr.size() != 1) {
+        Node* left = arr.top();
+        arr.pop();
+        Node* right = arr.top();
+        arr.pop();
+        if (left->count == right->count && left->letter < right->letter) {
+            t = left;
+            left = right;
+            right = t;
+        }
+        int sum = left->count + right->count;
+        arr.push(addNode('\0', sum, left, right));
+    }
+
+    Node* root = arr.top();
+    FILE* output;
+    fopen_s(&output, decipher, "wb +");
+    if (!output) {
+        puts("DeCoderERROR: decipher does not open\n");
+        exit(1);
+    }
+
+    char sf;
+    char se;
+    while (!feof(input)) {
+        sf = fgetc(input);
+        if (!feof(input)) {
+            for (int i = 7; i >= 0 && allet != 0; i--) {//идем по вектору от начала
+                if ((sf >> i) & 1) {
+                    if (root->right) {//если это не последний лист дерева
+                        root = root->right;//то идем проверять дальше
+                    }
+                    else {
+                        se = root->letter;//записываем букву с этим кодом
+                        fputc(se, output);//и выводим ее
+                        allet--;//учитываем что одну бкву мы уже вывели
+                        root = arr.top()->right;//идем от вершины
+                    }
+                }
+                else {
+                    if (root->left) {//аналогично
+                        root = root->left;
+                    }
+                    else {
+                        se = root->letter;
+                        fputc(se, output);
+                        allet--;
+                        root = arr.top()->left;
+                    }
+                }
+            }
+        }
+    }
+    fclose(input);
+    fclose(output);
+}
+
+void Equal(const char* original = "original.txt", const char* decipher = "decipher.txt") {
+    FILE* input;
+    input = fopen(original, "r");
+    FILE* output;
+    output = fopen(decipher, "r");
+    if (!input || !output) {
+        puts("ERROR: texts does not open\n");
+        exit(1);
+    }
+    char a = fgetc(input), b = fgetc(output);
+    while ((!feof(input)) && (!feof(output))) {
+        a = fgetc(input);
+        b = fgetc(output);
+        if ((a != b) || (!feof(input)) && (feof(output)) || (feof(input)) && (!feof(output))) {
+            puts("\nTexts are not equal\n");
+            exit(1);
+        }
+    }
+    cout << "\nTexts are equal\n";
+    fclose(input);
+    fclose(output);
+}
+
+
+int main()
+{
+    DeCoder();
+    Equal();
+}
